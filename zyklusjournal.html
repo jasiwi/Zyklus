@@ -1,0 +1,1726 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Zyklusjournal</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#c97b8e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Zyklusjournal">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --rose: #e8a4b0;
+    --rose-light: #f5d4db;
+    --rose-deep: #c97b8e;
+    --sage: #8faf9f;
+    --sage-light: #c8ddd4;
+    --cream: #fdf6f0;
+    --warm: #f0e4d8;
+    --text: #2d2020;
+    --text-soft: #7a6060;
+    --period: #e05a7a;
+    --eisprung: #8faf9f;
+    --follikel: #f5d4db;
+    --luteal: #ddb8c8;
+    --card: rgba(255,255,255,0.85);
+    --radius: 20px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--text);
+    min-height: 100vh;
+    max-width: 480px;
+    margin: 0 auto;
+    position: relative;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    top: -100px; right: -100px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, var(--rose-light) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -80px; left: -80px;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, var(--sage-light) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 480px;
+    background: rgba(253,246,240,0.92);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid rgba(232,164,176,0.2);
+  }
+  .nav-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: var(--rose-deep);
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+  .nav-tabs {
+    display: flex;
+    gap: 4px;
+    margin-top: 10px;
+    background: var(--warm);
+    border-radius: 12px;
+    padding: 3px;
+  }
+  .nav-tab {
+    flex: 1;
+    padding: 8px 4px;
+    border: none;
+    background: transparent;
+    border-radius: 9px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-soft);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .nav-tab.active {
+    background: white;
+    color: var(--rose-deep);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+
+  /* MAIN */
+  main {
+    padding: 140px 16px 100px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* VIEWS */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* HEUTE VIEW */
+  .date-header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .date-header .cycle-day {
+    font-family: 'DM Serif Display', serif;
+    font-size: 64px;
+    color: var(--rose-deep);
+    line-height: 1;
+  }
+  .date-header .cycle-label {
+    font-size: 13px;
+    color: var(--text-soft);
+    margin-top: 4px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .phase-badge {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 8px;
+    letter-spacing: 0.05em;
+  }
+  .phase-menstruation { background: #fde8ed; color: var(--period); }
+  .phase-follikel { background: var(--rose-light); color: var(--rose-deep); }
+  .phase-eisprung { background: var(--sage-light); color: #4a7a65; }
+  .phase-luteal { background: #ead4e0; color: #8a4a6a; }
+
+  /* CARDS */
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    border: 1px solid rgba(255,255,255,0.9);
+  }
+  .card-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-soft);
+    margin-bottom: 16px;
+  }
+
+  /* TOGGLE FIELDS */
+  .toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+  }
+  .toggle-row:last-child { border-bottom: none; }
+  .toggle-label { font-size: 14px; color: var(--text); }
+  .toggle-btn {
+    width: 44px; height: 26px;
+    background: #ddd;
+    border-radius: 13px;
+    border: none;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle-btn::after {
+    content: '';
+    position: absolute;
+    left: 2px; top: 2px;
+    width: 22px; height: 22px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+  .toggle-btn.on { background: var(--rose); }
+  .toggle-btn.on::after { transform: translateX(18px); }
+  .toggle-btn.sage.on { background: var(--sage); }
+
+  /* SLIDER FIELDS */
+  .slider-field { padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
+  .slider-field:last-child { border-bottom: none; }
+  .slider-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .slider-label { font-size: 14px; color: var(--text); }
+  .slider-value {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    color: var(--rose-deep);
+    min-width: 30px;
+    text-align: right;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--warm);
+    outline: none;
+    touch-action: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--rose-deep);
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+
+  /* STAR / DOT RATING (0-4) */
+  .dot-rating { display: flex; gap: 8px; }
+  .dot-btn {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--rose-light);
+    background: transparent;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-soft);
+    transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .dot-btn.active { background: var(--rose); border-color: var(--rose); color: white; }
+
+  /* NUMBER INPUT */
+  .number-input-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+  }
+  .number-input-row:last-child { border-bottom: none; }
+  .number-input-label { font-size: 14px; flex: 1; }
+  .num-controls { display: flex; align-items: center; gap: 12px; }
+  .num-btn {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: var(--rose-light);
+    color: var(--rose-deep);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 300;
+  }
+  .num-val {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: var(--rose-deep);
+    min-width: 40px;
+    text-align: center;
+  }
+
+  /* SAVE BTN */
+  .save-btn {
+    width: 100%;
+    padding: 18px;
+    background: linear-gradient(135deg, var(--rose-deep), var(--rose));
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+    letter-spacing: 0.03em;
+    box-shadow: 0 6px 24px rgba(201,123,142,0.35);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .save-btn:active { transform: scale(0.98); }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--text);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 24px;
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 200;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* VERLAUF VIEW */
+  .cycle-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 20px;
+  }
+  .cycle-cell {
+    aspect-ratio: 1;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s;
+    position: relative;
+  }
+  .cycle-cell:active { transform: scale(0.92); }
+  .cycle-cell.empty { background: transparent; }
+  .cycle-cell.day-cell { background: var(--warm); color: var(--text-soft); }
+  .cycle-cell.has-data { background: var(--rose-light); color: var(--rose-deep); }
+  .cycle-cell.periode { background: var(--period); color: white; }
+  .cycle-cell.eisprung-day { background: var(--sage); color: white; }
+  .cycle-cell.today { outline: 2px solid var(--rose-deep); outline-offset: 1px; }
+
+  .weekday-labels {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+  .weekday-label {
+    text-align: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-soft);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* STATS */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .stat-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 16px;
+    text-align: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+  }
+  .stat-val {
+    font-family: 'DM Serif Display', serif;
+    font-size: 32px;
+    color: var(--rose-deep);
+  }
+  .stat-label { font-size: 11px; color: var(--text-soft); margin-top: 4px; }
+
+  /* CHART */
+  .chart-wrap { position: relative; height: 160px; margin-top: 8px; }
+  canvas { width: 100% !important; }
+
+  /* SETTINGS VIEW */
+  .settings-section { margin-bottom: 24px; }
+  .settings-label {
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-soft); margin-bottom: 12px;
+  }
+  .settings-row {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .settings-row-label { font-size: 14px; }
+  .settings-row input[type=number] {
+    width: 60px;
+    padding: 6px 10px;
+    border: 1px solid var(--rose-light);
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    text-align: center;
+    color: var(--text);
+    background: white;
+  }
+  .export-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--warm);
+    color: var(--rose-deep);
+    border: 2px solid var(--rose-light);
+    border-radius: var(--radius);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: background 0.2s;
+  }
+  .export-btn:hover { background: var(--rose-light); }
+
+  /* BOTTOM NAV */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 480px;
+    background: rgba(253,246,240,0.95);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(232,164,176,0.2);
+    display: flex;
+    z-index: 100;
+  }
+  .bottom-btn {
+    flex: 1;
+    padding: 12px 4px 20px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 10px;
+    color: var(--text-soft);
+    transition: color 0.2s;
+  }
+  .bottom-btn.active { color: var(--rose-deep); }
+  .bottom-btn svg { transition: transform 0.2s; }
+  .bottom-btn.active svg { transform: scale(1.1); }
+
+  /* Notification */
+  .notif-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+  }
+  .notif-row:last-child { border-bottom: none; }
+  .notif-label { font-size: 14px; }
+  .notif-time {
+    padding: 6px 12px;
+    border: 1px solid var(--rose-light);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--rose-deep);
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-title">🌸 Zyklusjournal</div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showView('heute')">Heute</button>
+    <button class="nav-tab" onclick="showView('verlauf')">Verlauf</button>
+    <button class="nav-tab" onclick="showView('statistik')">Statistik</button>
+    <button class="nav-tab" onclick="showView('einstellungen')">Einstellungen</button>
+  </div>
+</nav>
+
+<main>
+
+  <!-- HEUTE -->
+  <div class="view active" id="view-heute">
+    <div class="date-header">
+      <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:4px;">
+        <button onclick="changeDay(-1)" style="width:36px;height:36px;border-radius:50%;border:none;background:var(--warm);color:var(--rose-deep);font-size:22px;cursor:pointer;line-height:1;">‹</button>
+        <input type="date" id="dayPicker" style="border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text-soft);text-align:center;cursor:pointer;" onchange="onDayChange(this.value)">
+        <button onclick="changeDay(1)" id="nextDayBtn" style="width:36px;height:36px;border-radius:50%;border:none;background:var(--warm);color:var(--rose-deep);font-size:22px;cursor:pointer;line-height:1;">›</button>
+      </div>
+      <div class="cycle-day" id="cycleDay">—</div>
+      <div class="cycle-label" id="cycleLabel">Zyklustag</div>
+      <span class="phase-badge" id="phaseBadge">—</span>
+    </div>
+
+    <!-- Phase Info Card -->
+    <div class="card" id="phaseInfoCard" style="border-left:4px solid var(--rose);margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer;" onclick="togglePhaseInfo()">
+        <div class="card-title" style="margin-bottom:0;" id="phaseInfoTitle">Phase</div>
+        <span id="phaseInfoChevron" style="font-size:16px;color:var(--text-soft);transition:transform 0.3s;">▾</span>
+      </div>
+      <div id="phaseInfoBody" style="display:none;margin-top:12px;">
+        <div id="phaseInfoContent"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Zyklus</div>
+      <div class="toggle-row">
+        <span class="toggle-label">🔴 Periode</span>
+        <button class="toggle-btn" id="toggle-periode" onclick="toggle('periode')"></button>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">🌿 Eisprung</span>
+        <button class="toggle-btn sage" id="toggle-eisprung" onclick="toggle('eisprung')"></button>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">🩹 Unterleibschmerz</span>
+        <button class="toggle-btn" id="toggle-unterleib" onclick="toggle('unterleib')"></button>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">🎭 Maske Biodance</span>
+        <button class="toggle-btn" id="toggle-maske" onclick="toggle('maske')"></button>
+      </div>
+    </div>
+
+    <!-- Gefühl & Wohlfinden -->
+    <div class="card">
+      <div class="card-title">Wohlbefinden</div>
+      <div class="slider-field">
+        <div class="slider-header">
+          <span class="slider-label">😊 Gefühl allgemein</span>
+          <span class="slider-value" id="val-gefuehl">5</span>
+        </div>
+        <input type="range" min="1" max="10" value="5" oninput="setSlider('gefuehl', this.value)">
+      </div>
+      <div class="slider-field">
+        <div class="slider-header">
+          <span class="slider-label">💪 Gefühl Training</span>
+          <span class="slider-value" id="val-training">5</span>
+        </div>
+        <input type="range" min="1" max="10" value="5" oninput="setSlider('training', this.value)">
+      </div>
+      <div class="slider-field">
+        <div class="slider-header">
+          <span class="slider-label">😰 Stresslevel</span>
+          <span class="slider-value" id="val-stress">3</span>
+        </div>
+        <input type="range" min="1" max="10" value="3" oninput="setSlider('stress', this.value)">
+      </div>
+      <div class="slider-field">
+        <div class="slider-header">
+          <span class="slider-label">😴 Schlafqualität %</span>
+          <span class="slider-value" id="val-schlaf">75</span>
+        </div>
+        <input type="range" min="0" max="100" value="75" oninput="setSlider('schlaf', this.value)">
+      </div>
+      <div class="slider-field">
+        <div class="slider-header">
+          <span class="slider-label">😴 Langeweile</span>
+          <span class="slider-value" id="val-langeweile">3</span>
+        </div>
+        <input type="range" min="1" max="10" value="3" oninput="setSlider('langeweile', this.value)">
+      </div>
+    </div>
+
+    <!-- Haut -->
+    <div class="card">
+      <div class="card-title">Haut</div>
+      <div class="slider-field">
+        <div class="slider-header">
+          <span class="slider-label">✨ Talgproduktion Gesicht</span>
+          <span class="slider-value" id="val-talg-gesicht">3</span>
+        </div>
+        <input type="range" min="1" max="10" value="3" oninput="setSlider('talg-gesicht', this.value)">
+      </div>
+      <div class="slider-field">
+        <div class="slider-header">
+          <span class="slider-label">✨ Talgproduktion Rücken</span>
+          <span class="slider-value" id="val-talg-ruecken">3</span>
+        </div>
+        <input type="range" min="1" max="10" value="3" oninput="setSlider('talg-ruecken', this.value)">
+      </div>
+      <div class="slider-field">
+        <div class="slider-header">
+          <span class="slider-label">🤏 Picking Session</span>
+          <span class="slider-value" id="val-picking">2</span>
+        </div>
+        <input type="range" min="1" max="10" value="2" oninput="setSlider('picking', this.value)">
+      </div>
+    </div>
+
+    <!-- Ernährung -->
+    <div class="card">
+      <div class="card-title">Ernährung</div>
+      <div class="number-input-row">
+        <span class="number-input-label">💧 Wasser (Liter)</span>
+        <div class="num-controls">
+          <button class="num-btn" onclick="changeNum('wasser', -0.5)">−</button>
+          <span class="num-val" id="val-wasser">2.0</span>
+          <button class="num-btn" onclick="changeNum('wasser', 0.5)">+</button>
+        </div>
+      </div>
+
+      <div class="slider-field" style="border-bottom:1px solid rgba(0,0,0,0.05); padding-bottom:12px;">
+        <div class="card-title" style="margin-bottom:12px; margin-top:4px;">Intensität (0 = nie, 4 = oft)</div>
+      </div>
+
+      <div style="padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.05);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <span style="font-size:14px;">🍬 Zucker</span>
+        </div>
+        <div class="dot-rating" id="dots-zucker"></div>
+      </div>
+      <div style="padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.05);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <span style="font-size:14px;">🥛 Milch</span>
+        </div>
+        <div class="dot-rating" id="dots-milch"></div>
+      </div>
+      <div style="padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.05);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <span style="font-size:14px;">🍅 Nachtschattengewächse</span>
+        </div>
+        <div class="dot-rating" id="dots-nachtschatten"></div>
+      </div>
+      <div style="padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.05);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <span style="font-size:14px;">🥚 Eier</span>
+        </div>
+        <div class="dot-rating" id="dots-eier"></div>
+      </div>
+      <div style="padding: 12px 0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <span style="font-size:14px;">🍷 Alkohol</span>
+        </div>
+        <div class="dot-rating" id="dots-alkohol"></div>
+      </div>
+    </div>
+
+    <button class="save-btn" onclick="saveDay()">✨ Eintrag speichern</button>
+  </div>
+
+  <!-- VERLAUF -->
+  <div class="view" id="view-verlauf">
+    <div class="card">
+      <div class="card-title">Alle Zyklen</div>
+      <div id="cycleSwitcher" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;"></div>
+      <div id="cycleInfo" style="font-size:12px;color:var(--text-soft);margin-bottom:16px;"></div>
+      <div class="weekday-labels">
+        <div class="weekday-label">Mo</div>
+        <div class="weekday-label">Di</div>
+        <div class="weekday-label">Mi</div>
+        <div class="weekday-label">Do</div>
+        <div class="weekday-label">Fr</div>
+        <div class="weekday-label">Sa</div>
+        <div class="weekday-label">So</div>
+      </div>
+      <div class="cycle-grid" id="cycleGrid"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Legende</div>
+      <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:4px;">
+        <span style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:16px;height:16px;border-radius:4px;background:var(--period);display:inline-block;"></span>Periode</span>
+        <span style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:16px;height:16px;border-radius:4px;background:var(--sage);display:inline-block;"></span>Eisprung</span>
+        <span style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:16px;height:16px;border-radius:4px;background:var(--rose-light);display:inline-block;"></span>Daten erfasst</span>
+        <span style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:16px;height:16px;border-radius:4px;background:var(--warm);display:inline-block;"></span>Offen</span>
+      </div>
+    </div>
+
+    <div id="dayDetailCard" style="display:none;" class="card">
+      <div class="card-title" id="dayDetailTitle">Tag —</div>
+      <div id="dayDetailContent"></div>
+    </div>
+  </div>
+
+  <!-- STATISTIK -->
+  <div class="view" id="view-statistik">
+
+    <!-- Haut-Score Übersicht -->
+    <div class="card" style="background:linear-gradient(135deg,#fde8ed,#f5d4db);border:none;">
+      <div class="card-title" style="color:var(--rose-deep);">✨ Haut-Übersicht</div>
+      <div class="stats-grid" style="margin-bottom:0;">
+        <div class="stat-card">
+          <div class="stat-val" id="stat-talg-avg">—</div>
+          <div class="stat-label">Ø Talg Gesicht</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="stat-picking-avg">—</div>
+          <div class="stat-label">Ø Picking</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="stat-best-day">—</div>
+          <div class="stat-label">Bester Haut-Tag</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="stat-worst-day">—</div>
+          <div class="stat-label">Schlechtester Tag</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Haut Verlauf mit Überlagerung (direkt nach Übersicht) -->
+    <div class="card">
+      <div class="card-title">✨ Talg Gesicht + Einflussfaktoren</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;" id="overlayToggles"></div>
+      <div class="chart-wrap" style="height:180px;"><canvas id="chartHautOverlay"></canvas></div>
+    </div>
+
+    <!-- Haut-Einflussfaktoren -->
+    <div class="card">
+      <div class="card-title">🔍 Einfluss auf Talg Gesicht</div>
+      <p style="font-size:12px;color:var(--text-soft);margin-bottom:12px;line-height:1.5;">Korrelation: positiv = höherer Wert → schlechtere Haut · negativ = höherer Wert → bessere Haut</p>
+      <div id="correlationBars"></div>
+    </div>
+
+    <!-- Maske Biodance Analyse -->
+    <div class="card" style="border-left:4px solid #c97b8e;">
+      <div class="card-title">🎭 Maske Biodance – Wirkung auf die Haut</div>
+      <div id="maskeDelayContent"><p style="font-size:13px;color:var(--text-soft);">Wird berechnet…</p></div>
+    </div>
+
+    <!-- Alle Haut-Daten -->
+    <div class="card">
+      <div class="card-title">✨ Talgproduktion Verlauf</div>
+      <div class="chart-wrap"><canvas id="chartTalg"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🤏 Picking Session</div>
+      <div class="chart-wrap"><canvas id="chartPicking"></canvas></div>
+    </div>
+
+    <!-- Allgemeine Stats -->
+    <div class="card">
+      <div class="card-title">📊 Allgemein</div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-val" id="stat-zyklus">—</div>
+          <div class="stat-label">Zyklustage gesamt</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="stat-periode">—</div>
+          <div class="stat-label">Periode-Tage</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="stat-schlaf">—</div>
+          <div class="stat-label">Ø Schlaf %</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="stat-wasser">—</div>
+          <div class="stat-label">Ø Wasser L</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wohlbefinden -->
+    <div class="card">
+      <div class="card-title">😊 Gefühl allgemein</div>
+      <div class="chart-wrap"><canvas id="chartGefuehl"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🩹 Unterleibschmerz</div>
+      <div class="chart-wrap"><canvas id="chartUnterleib"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">💪 Gefühl Training</div>
+      <div class="chart-wrap"><canvas id="chartTraining"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">😰 Stresslevel</div>
+      <div class="chart-wrap"><canvas id="chartStress"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">😴 Schlafqualität %</div>
+      <div class="chart-wrap"><canvas id="chartSchlaf"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">😴 Langeweile</div>
+      <div class="chart-wrap"><canvas id="chartLangeweile"></canvas></div>
+    </div>
+
+    <!-- Ernährung -->
+    <div class="card">
+      <div class="card-title">🍽️ Ernährung Verlauf</div>
+      <div class="chart-wrap" style="height:200px;"><canvas id="chartErnaehrung"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">💧 Wasserkonsum (L)</div>
+      <div class="chart-wrap"><canvas id="chartWasser"></canvas></div>
+    </div>
+
+  </div>
+
+  <!-- EINSTELLUNGEN -->
+  <div class="view" id="view-einstellungen">
+    <div class="settings-section">
+      <div class="settings-label">Zyklus-Einstellungen</div>
+      <div class="settings-row">
+        <span class="settings-row-label">Ø Zykluslänge (Tage)</span>
+        <input type="number" id="cycleLength" value="30" min="20" max="45">
+      </div>
+      <div class="settings-row">
+        <span class="settings-row-label">Ø Eisprung-Tag</span>
+        <input type="number" id="ovulationDay" value="18" min="10" max="25">
+      </div>
+      <button class="save-btn" style="margin-top:8px;" onclick="saveSettings()">Einstellungen speichern</button>
+      <div style="margin-top:16px;padding:16px;background:var(--rose-light);border-radius:16px;">
+        <div style="font-size:13px;font-weight:600;color:var(--rose-deep);margin-bottom:6px;">🌸 Neuen Zyklus manuell starten</div>
+        <div style="font-size:12px;color:var(--text-soft);margin-bottom:10px;">Startet automatisch wenn du Periode ✓ nach Tag 20 setzt. Oder hier manuell:</div>
+        <input type="date" id="manualCycleStart" style="border:1px solid var(--rose-light);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);background:white;font-family:DM Sans,sans-serif;width:100%;margin-bottom:10px;">
+        <button onclick="startNewCycleManual()" style="width:100%;padding:12px;background:var(--rose-deep);color:white;border:none;border-radius:12px;font-family:DM Sans,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">Neuen Zyklus starten</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-label">Erinnerungen</div>
+      <div class="card">
+        <div class="notif-row">
+          <span class="notif-label">📝 Tägliche Erinnerung</span>
+          <input type="time" class="notif-time" id="notif-daily" value="20:00">
+        </div>
+        <div class="notif-row" style="border-bottom:none;">
+          <span class="notif-label">🔔 Benachrichtigungen</span>
+          <button class="toggle-btn" id="toggle-notif" onclick="toggleNotif()"></button>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--text-soft);margin-top:8px;line-height:1.5;">Hinweis: Erinnerungen funktionieren nur wenn die App als PWA installiert ist (Teilen → Zum Home-Bildschirm).</p>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-label">Daten</div>
+      <button class="export-btn" onclick="exportCSV()">📊 Als CSV exportieren</button>
+      <button class="export-btn" onclick="importExcel()">📥 Excel importieren</button>
+      <input type="file" id="importFile" accept=".json" style="display:none;" onchange="handleImport(this)">
+    </div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+// =====================
+// DATA MODEL
+// =====================
+const STORAGE_KEY = 'zyklusjournal_v3';
+let appData = loadData();
+
+function loadData() {
+  // Migrate from v2 if needed
+  try {
+    const v3 = localStorage.getItem(STORAGE_KEY);
+    if (v3) return JSON.parse(v3);
+    const v2raw = localStorage.getItem('zyklusjournal_v2');
+    if (v2raw) {
+      const v2 = JSON.parse(v2raw);
+      // Migrate: wrap single cycle into cycles array
+      const migrated = {
+        settings: { ...v2.settings, ovulationDay: v2.settings.ovulationDay || 18, notifEnabled: false, notifTime: '20:00' },
+        cycles: [{ id: 1, start: v2.settings.cycleStart, entries: v2.entries || {} }]
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+      return migrated;
+    }
+  } catch(e) {}
+  return {
+    settings: { cycleLength: 30, ovulationDay: 18, notifEnabled: false, notifTime: '20:00' },
+    cycles: [{ id: 1, start: '2026-02-10', entries: {} }]
+  };
+}
+
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+}
+
+function currentCycle() {
+  return appData.cycles[appData.cycles.length - 1];
+}
+
+// =====================
+// SEED EXCEL DATA
+// =====================
+function seedExcelData() {
+  const cycle = currentCycle();
+  if (Object.keys(cycle.entries).length > 0) return; // already has data
+  const cycleStart = new Date(cycle.start);
+  const excelData = {
+    1: { periode: true },
+    2: { periode: true, maske: true },
+    3: { periode: true },
+    4: { periode: true },
+    5: { periode: true },
+    6: { periode: true },
+    8: { gefuehl: 3, training: 9, stress: 2, 'talg-gesicht': 5, 'talg-ruecken': 5, picking: 4, langeweile: 7, schlaf: 76, wasser: 2.2, zucker: 2, milch: 3, nachtschatten: 1, eier: 0 },
+    9: { gefuehl: 5, training: 8, stress: 2, 'talg-gesicht': 2, 'talg-ruecken': 4, picking: 3, langeweile: 6, schlaf: 75, wasser: 2.5, zucker: 2, milch: 4, nachtschatten: 0, eier: 0 },
+    10: { gefuehl: 6, training: 6, stress: 1, 'talg-gesicht': 2, 'talg-ruecken': 2, picking: 2, langeweile: 5, schlaf: 73, wasser: 2.0, zucker: 2, milch: 4, nachtschatten: 0, eier: 0 },
+    11: { gefuehl: 6, training: 8, stress: 3, 'talg-gesicht': 2, 'talg-ruecken': 2, picking: 1, langeweile: 1, schlaf: 68, wasser: 2.0, zucker: 2, milch: 4, nachtschatten: 0, eier: 0 },
+    12: { gefuehl: 7, training: 7, stress: 1, 'talg-gesicht': 2, 'talg-ruecken': 2, picking: 1, langeweile: 1, schlaf: 77, wasser: 1.5, zucker: 2, milch: 4, nachtschatten: 0, eier: 0 },
+    13: { gefuehl: 7, training: 7, stress: 1, 'talg-gesicht': 2, 'talg-ruecken': 2, picking: 1, langeweile: 1, schlaf: 75, wasser: 2.0, zucker: 4, milch: 4, nachtschatten: 0, eier: 0 },
+    14: { gefuehl: 6, stress: 5, 'talg-gesicht': 3, 'talg-ruecken': 2, picking: 1, langeweile: 4, schlaf: 80, wasser: 2.0, zucker: 2, milch: 4, nachtschatten: 0, eier: 0 },
+    15: { gefuehl: 6, training: 8, stress: 2, 'talg-gesicht': 2, 'talg-ruecken': 2, picking: 1, langeweile: 5, schlaf: 74, wasser: 2.0, zucker: 3, milch: 2, nachtschatten: 0, eier: 0, maske: true },
+    16: { 'talg-gesicht': 2, 'talg-ruecken': 2, schlaf: 69, zucker: 2, milch: 4, nachtschatten: 0, eier: 0 },
+    17: { 'talg-gesicht': 2, 'talg-ruecken': 2, schlaf: 75, zucker: 2, milch: 4, nachtschatten: 0, eier: 0 },
+    18: { langeweile: 1, schlaf: 79, zucker: 2, milch: 4, nachtschatten: 0, eier: 0, eisprung: true },
+    19: { gefuehl: 5, training: 5, stress: 4, 'talg-gesicht': 2, 'talg-ruecken': 2, picking: 3, langeweile: 1, schlaf: 90, wasser: null, zucker: 1, milch: 3, nachtschatten: 1, eier: 1 },
+    20: { gefuehl: 6, training: 5, stress: 1, 'talg-gesicht': 1, 'talg-ruecken': 1, picking: 1, langeweile: 1, schlaf: 87, wasser: 2.5, zucker: 2, milch: 3, nachtschatten: 0, eier: 1 },
+    21: { gefuehl: 7, schlaf: 81, nachtschatten: 0, eier: 0, maske: true },
+  };
+  Object.entries(excelData).forEach(([dayStr, data]) => {
+    const day = parseInt(dayStr);
+    const date = new Date(cycleStart);
+    date.setDate(date.getDate() + day - 1);
+    cycle.entries[date.toISOString().split('T')[0]] = data;
+  });
+  saveData();
+}
+
+if (!localStorage.getItem('zyklusjournal_seeded_v3')) {
+  seedExcelData();
+  localStorage.setItem('zyklusjournal_seeded_v3', '1');
+}
+
+// =====================
+// MULTI-CYCLE LOGIC
+// =====================
+function getCycleForDate(dateKey) {
+  // Find which cycle a given date belongs to (latest matching cycle)
+  for (let i = appData.cycles.length - 1; i >= 0; i--) {
+    if (dateKey >= appData.cycles[i].start) return appData.cycles[i];
+  }
+  return appData.cycles[0];
+}
+
+function checkAutoNewCycle(dateKey, entry) {
+  // If periode is set and we're past day 20 of current cycle → start new cycle
+  if (!entry.periode) return;
+  const cycle = getCycleForDate(dateKey);
+  const cycleStartDate = new Date(cycle.start);
+  const entryDate = new Date(dateKey);
+  const dayNum = Math.floor((entryDate - cycleStartDate) / 86400000) + 1;
+  if (dayNum < 20) return;
+  // Check this isn't already the start of a cycle
+  const alreadyStart = appData.cycles.some(c => c.start === dateKey);
+  if (alreadyStart) return;
+  // Start new cycle!
+  const newCycle = { id: appData.cycles.length + 1, start: dateKey, entries: {} };
+  // Move this entry to new cycle
+  newCycle.entries[dateKey] = entry;
+  delete cycle.entries[dateKey];
+  appData.cycles.push(newCycle);
+  saveData();
+  showToast('🌸 Neuer Zyklus #' + newCycle.id + ' gestartet!');
+  return true;
+}
+
+function getCycleDayInCycle(dateKey, cycle) {
+  const start = new Date(cycle.start);
+  const d = new Date(dateKey);
+  return Math.max(1, Math.floor((d - start) / 86400000) + 1);
+}
+
+// =====================
+// STATE
+// =====================
+let today = new Date().toISOString().split('T')[0];
+let activeDay = today;
+let activeCycle = getCycleForDate(activeDay);
+let todayEntry = activeCycle.entries[activeDay] ? {...activeCycle.entries[activeDay]} : getDefaultEntry();
+let numericState = { wasser: 2.0 };
+
+function changeDay(delta) {
+  const d = new Date(activeDay);
+  d.setDate(d.getDate() + delta);
+  const newDay = d.toISOString().split('T')[0];
+  if (newDay > today) return;
+  activeDay = newDay;
+  loadDayIntoForm();
+}
+
+function onDayChange(val) {
+  if (val > today) { document.getElementById('dayPicker').value = today; return; }
+  activeDay = val;
+  loadDayIntoForm();
+}
+
+function loadDayIntoForm() {
+  activeCycle = getCycleForDate(activeDay);
+  todayEntry = activeCycle.entries[activeDay] ? {...activeCycle.entries[activeDay]} : getDefaultEntry();
+  numericState.wasser = todayEntry.wasser || 2.0;
+  document.getElementById('dayPicker').value = activeDay;
+  document.getElementById('nextDayBtn').style.opacity = activeDay === today ? '0.3' : '1';
+  const cDay = getCycleDayInCycle(activeDay, activeCycle);
+  const isPast = activeDay !== today;
+  document.getElementById('cycleLabel').textContent = isPast ? `Zyklus #${activeCycle.id} · Vergangenheit` : `Zyklus #${activeCycle.id}`;
+  initHeuteView();
+}
+
+function getDefaultEntry() {
+  return {
+    periode: false, eisprung: false, maske: false, unterleib: false,
+    gefuehl: 1, training: 1, stress: 1,
+    'talg-gesicht': 1, 'talg-ruecken': 1,
+    picking: 1, langeweile: 1, schlaf: 1,
+    wasser: 0,
+    zucker: 0, milch: 0, nachtschatten: 0, eier: 0, alkohol: 0
+  };
+}
+
+// =====================
+// CYCLE CALCULATIONS
+// =====================
+function getCycleDay() {
+  return getCycleDayInCycle(activeDay, activeCycle);
+}
+
+function getPhase(day) {
+  const ovDay = appData.settings.ovulationDay;
+  const phases = {
+    menstruation: {
+      name: 'Menstruation', cls: 'phase-menstruation', color: '#e05a7a', emoji: '🔴',
+      tage: 'Tag 1–6',
+      hormone: 'Östrogen & Progesteron fallen auf ihren Tiefpunkt. FSH steigt leicht an und initiiert die nächste Follikelreifung.',
+      haut: 'Durch den Hormonabfall kann die Haut trockener und empfindlicher sein. Talgproduktion ist in der Regel niedrig bis mittel, aber Entzündungen aus der Lutealphase klingen erst jetzt ab.',
+      energie: 'Energie und Leistungsfähigkeit sind oft reduziert. Der Körper verliert Eisen – ausreichend Schlaf und leichte Bewegung helfen.',
+      tipp: 'Milde, feuchtigkeitsspendende Hautpflege. Entzündungshemmende Ernährung (Omega-3, Zink) unterstützt die Hauterholung.'
+    },
+    follikel: {
+      name: 'Follikelphase', cls: 'phase-follikel', color: '#c97b8e', emoji: '🌱',
+      tage: 'Tag 7 bis ~' + (ovDay - 2),
+      hormone: 'Östrogen steigt stetig an. FSH stimuliert die Reifung mehrerer Follikel im Eierstock, von denen sich einer durchsetzt (dominanter Follikel).',
+      haut: 'Steigende Östrogenspiegel fördern die Kollagenproduktion und Hautfeuchtigkeit. Die Haut wirkt oft strahlend und glatt. Talgproduktion bleibt moderat.',
+      energie: 'Energie, Motivation und kognitive Leistung steigen. Östrogen wirkt stimmungsaufhellend über Serotonin- und Dopaminsignalwege.',
+      tipp: 'Gute Phase für intensive Trainingseinheiten und neue Routinen. Haut verträgt aktivere Wirkstoffe wie Retinol oder AHAs besser.'
+    },
+    eisprung: {
+      name: 'Eisprungphase', cls: 'phase-eisprung', color: '#4a7a65', emoji: '🌿',
+      tage: 'Tag ' + (ovDay - 1) + '–' + (ovDay + 2),
+      hormone: 'Östrogen erreicht seinen Peak → LH-Surge (Luteinisierungshormon) → Eisprung. Testosteron steigt kurz an und fördert Libido und Selbstvertrauen.',
+      haut: 'Östrogenmaximum = beste Haut im Zyklus. Kollagensynthese auf Hochtouren, Poren wirken feiner. Kurz vor dem Eisprung kann erhöhtes Testosteron die Talgproduktion leicht erhöhen.',
+      energie: 'Körperlich und mental auf dem Höhepunkt. Beste Phase für soziale Interaktion, Präsentationen und Höchstleistungen.',
+      tipp: 'Testosteron kann Mitesser begünstigen – milde Salicylsäure prophylaktisch sinnvoll. Viel Wasser trinken unterstützt den Östrogen-Stoffwechsel.'
+    },
+    luteal: {
+      name: 'Lutealphase', cls: 'phase-luteal', color: '#8a4a6a', emoji: '🌙',
+      tage: 'Tag ' + (ovDay + 3) + ' bis Ende',
+      hormone: 'Progesteron dominiert und steigt stark an. Östrogen hat eine zweite, kleinere Welle. Gegen Ende des Zyklus fallen beide ab – was PMS auslöst.',
+      haut: 'Progesteron stimuliert die Talgproduktion deutlich → höheres Risiko für Mitesser und Akne, besonders in der zweiten Hälfte. Poren wirken weiter. Entzündungsbereitschaft der Haut steigt.',
+      energie: 'Körpertemperatur ist erhöht (+0.2–0.5°C). Energielevel sinkt, Erholungsbedarf steigt. Cortisol reagiert sensibler – Stress trifft die Haut härter.',
+      tipp: 'Zucker, Milch und Alkohol haben in dieser Phase den stärksten Einfluss auf die Haut. Anti-inflammatorische Ernährung besonders wichtig. Leichtere Texturen in der Pflege bevorzugen.'
+    }
+  };
+
+  let key;
+  if (day <= 6) key = 'menstruation';
+  else if (day <= ovDay - 2) key = 'follikel';
+  else if (day <= ovDay + 2) key = 'eisprung';
+  else key = 'luteal';
+
+  return phases[key];
+}
+
+let phaseInfoOpen = false;
+function togglePhaseInfo() {
+  phaseInfoOpen = !phaseInfoOpen;
+  document.getElementById('phaseInfoBody').style.display = phaseInfoOpen ? 'block' : 'none';
+  document.getElementById('phaseInfoChevron').style.transform = phaseInfoOpen ? 'rotate(180deg)' : '';
+}
+
+// =====================
+// UI INIT
+// =====================
+function initHeuteView() {
+  const entry = todayEntry;
+  const cDay = getCycleDay();
+  document.getElementById('cycleDay').textContent = cDay;
+  const phase = getPhase(cDay);
+  const badge = document.getElementById('phaseBadge');
+  badge.textContent = phase.emoji + ' ' + phase.name;
+  badge.className = 'phase-badge ' + phase.cls;
+
+  // Phase info card
+  const card = document.getElementById('phaseInfoCard');
+  card.style.borderLeftColor = phase.color;
+  document.getElementById('phaseInfoTitle').textContent = phase.emoji + ' ' + phase.name + ' · ' + phase.tage;
+  document.getElementById('phaseInfoContent').innerHTML = `
+    <div style="display:grid;gap:12px;">
+      <div style="background:rgba(0,0,0,0.03);border-radius:10px;padding:12px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:${phase.color};margin-bottom:5px;">🧬 Hormone</div>
+        <div style="font-size:13px;line-height:1.6;color:var(--text);">${phase.hormone}</div>
+      </div>
+      <div style="background:rgba(0,0,0,0.03);border-radius:10px;padding:12px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:${phase.color};margin-bottom:5px;">✨ Haut</div>
+        <div style="font-size:13px;line-height:1.6;color:var(--text);">${phase.haut}</div>
+      </div>
+      <div style="background:rgba(0,0,0,0.03);border-radius:10px;padding:12px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:${phase.color};margin-bottom:5px;">⚡ Energie & Wohlbefinden</div>
+        <div style="font-size:13px;line-height:1.6;color:var(--text);">${phase.energie}</div>
+      </div>
+      <div style="background:${phase.color}18;border-radius:10px;padding:12px;border-left:3px solid ${phase.color};">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:${phase.color};margin-bottom:5px;">💡 Tipp für diese Phase</div>
+        <div style="font-size:13px;line-height:1.6;color:var(--text);">${phase.tipp}</div>
+      </div>
+    </div>
+  `;
+
+  // toggles
+  setToggleState('toggle-periode', entry.periode);
+  setToggleState('toggle-eisprung', entry.eisprung);
+  setToggleState('toggle-maske', entry.maske);
+  setToggleState('toggle-unterleib', entry.unterleib);
+
+  // sliders
+  const sliders = ['gefuehl','training','stress','talg-gesicht','talg-ruecken','picking','langeweile','schlaf'];
+  sliders.forEach(k => {
+    const val = entry[k] !== undefined ? entry[k] : getDefaultEntry()[k];
+    document.getElementById('val-'+k).textContent = val;
+    document.querySelectorAll('input[type=range]').forEach(inp => {
+      if (inp.oninput && inp.oninput.toString().includes(k)) inp.value = val;
+    });
+  });
+  // Re-set all range inputs by index
+  const ranges = document.querySelectorAll('input[type=range]');
+  const keys = ['gefuehl','training','stress','schlaf','langeweile','talg-gesicht','talg-ruecken','picking'];
+  keys.forEach((k, i) => {
+    if (ranges[i]) ranges[i].value = entry[k] !== undefined ? entry[k] : getDefaultEntry()[k];
+    document.getElementById('val-'+k).textContent = ranges[i] ? ranges[i].value : '';
+  });
+
+  // wasser
+  numericState.wasser = entry.wasser || 2.0;
+  document.getElementById('val-wasser').textContent = numericState.wasser.toFixed(1);
+
+  // dot ratings
+  ['zucker','milch','nachtschatten','eier','alkohol'].forEach(k => {
+    renderDots(k, entry[k] !== undefined ? entry[k] : 0);
+  });
+}
+
+function renderDots(key, selected) {
+  const container = document.getElementById('dots-'+key);
+  container.innerHTML = '';
+  for (let i = 0; i <= 4; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'dot-btn' + (i <= selected ? ' active' : '');
+    btn.textContent = i;
+    btn.onclick = () => {
+      todayEntry[key] = i;
+      renderDots(key, i);
+    };
+    container.appendChild(btn);
+  }
+}
+
+function setToggleState(id, on) {
+  const btn = document.getElementById(id);
+  if (on) btn.classList.add('on');
+  else btn.classList.remove('on');
+}
+
+function toggle(key) {
+  const btnId = 'toggle-' + key === 'maske' ? 'toggle-maske' : 'toggle-' + key;
+  todayEntry[key] = !todayEntry[key];
+  setToggleState('toggle-' + key, todayEntry[key]);
+}
+
+function setSlider(key, val) {
+  todayEntry[key] = parseFloat(val);
+  document.getElementById('val-'+key).textContent = val;
+}
+
+function changeNum(key, delta) {
+  numericState[key] = Math.max(0, Math.round((numericState[key] + delta) * 10) / 10);
+  todayEntry[key] = numericState[key];
+  document.getElementById('val-'+key).textContent = numericState[key].toFixed(1);
+}
+
+function saveDay() {
+  const entry = {...todayEntry};
+  const wasNewCycle = entry.periode && checkAutoNewCycle(activeDay, entry);
+  if (!wasNewCycle) {
+    activeCycle = getCycleForDate(activeDay);
+    activeCycle.entries[activeDay] = entry;
+    saveData();
+  }
+  const label = activeDay === today ? '✨ Gespeichert!' : '✨ Eintrag aktualisiert!';
+  if (!wasNewCycle) showToast(label);
+  // Refresh cycle label in case cycle changed
+  loadDayIntoForm();
+  renderCycleGrid();
+  updateStats();
+}
+
+// =====================
+// VERLAUF
+// =====================
+let viewingCycleIdx = null; // null = current
+
+function renderCycleGrid() {
+  const idx = viewingCycleIdx !== null ? viewingCycleIdx : appData.cycles.length - 1;
+  const cycle = appData.cycles[idx];
+  const grid = document.getElementById('cycleGrid');
+  grid.innerHTML = '';
+
+  // Cycle switcher
+  const switcher = document.getElementById('cycleSwitcher');
+  switcher.innerHTML = '';
+  appData.cycles.forEach((c, i) => {
+    const btn = document.createElement('button');
+    const startFmt = new Date(c.start).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' });
+    const entryCount = Object.keys(c.entries).length;
+    btn.textContent = `Zyklus #${c.id}`;
+    btn.title = `ab ${startFmt} · ${entryCount} Einträge`;
+    btn.style.cssText = `padding:6px 12px;border-radius:20px;border:2px solid var(--rose-light);font-size:11px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;transition:all 0.2s;`;
+    if (i === idx) {
+      btn.style.background = 'var(--rose-deep)';
+      btn.style.color = 'white';
+      btn.style.borderColor = 'var(--rose-deep)';
+    } else {
+      btn.style.background = 'transparent';
+      btn.style.color = 'var(--rose-deep)';
+    }
+    btn.onclick = () => { viewingCycleIdx = i; renderCycleGrid(); };
+    switcher.appendChild(btn);
+  });
+
+  // Cycle info
+  const startFmt = new Date(cycle.start).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' });
+  const entryCount = Object.keys(cycle.entries).length;
+  const isCurrentCycle = idx === appData.cycles.length - 1;
+  document.getElementById('cycleInfo').textContent = `ab ${startFmt} · ${entryCount} Einträge${isCurrentCycle ? ' · aktuell' : ''}`;
+
+  const start = new Date(cycle.start);
+  // Determine how many days to show: actual length or until next cycle start
+  let len = appData.settings.cycleLength;
+  if (!isCurrentCycle && appData.cycles[idx + 1]) {
+    const nextStart = new Date(appData.cycles[idx + 1].start);
+    len = Math.min(Math.floor((nextStart - start) / 86400000), 45);
+  }
+
+  const startDow = (start.getDay() + 6) % 7;
+  for (let blank = 0; blank < startDow; blank++) {
+    const cell = document.createElement('div');
+    cell.className = 'cycle-cell empty';
+    grid.appendChild(cell);
+  }
+
+  for (let d = 0; d < len; d++) {
+    const date = new Date(start);
+    date.setDate(date.getDate() + d);
+    const dateKey = date.toISOString().split('T')[0];
+    const entry = cycle.entries[dateKey];
+    const cell = document.createElement('div');
+    cell.textContent = d + 1;
+    let cls = 'cycle-cell day-cell';
+    if (entry) {
+      if (entry.eisprung) cls = 'cycle-cell eisprung-day';
+      else if (entry.periode) cls = 'cycle-cell periode';
+      else cls = 'cycle-cell has-data';
+    }
+    if (dateKey === today) cls += ' today';
+    cell.className = cls;
+    cell.onclick = () => showDayDetail(d + 1, dateKey, entry);
+    grid.appendChild(cell);
+  }
+}
+
+function showDayDetail(dayNum, dateKey, entry) {
+  const card = document.getElementById('dayDetailCard');
+  const title = document.getElementById('dayDetailTitle');
+  const content = document.getElementById('dayDetailContent');
+  card.style.display = 'block';
+  title.textContent = `Zyklustag ${dayNum} — ${formatDate(dateKey)}`;
+
+  if (!entry) {
+    content.innerHTML = '<p style="color:var(--text-soft);font-size:14px;padding:8px 0;">Noch kein Eintrag für diesen Tag.</p>';
+    return;
+  }
+
+  const rows = [
+    ['Periode', entry.periode ? 'Ja' : null],
+    ['Eisprung', entry.eisprung ? 'Ja' : null],
+    ['Unterleibschmerz', entry.unterleib ? 'Ja' : null],
+    ['Gefühl allgemein', entry.gefuehl],
+    ['Gefühl Training', entry.training],
+    ['Stresslevel', entry.stress],
+    ['Schlafqualität', entry.schlaf ? entry.schlaf + '%' : null],
+    ['Wasser', entry.wasser ? entry.wasser + 'L' : null],
+    ['Talg Gesicht', entry['talg-gesicht']],
+    ['Talg Rücken', entry['talg-ruecken']],
+    ['Picking', entry.picking],
+    ['Langeweile', entry.langeweile],
+    ['Zucker', entry.zucker !== undefined ? entry.zucker + '/4' : null],
+    ['Milch', entry.milch !== undefined ? entry.milch + '/4' : null],
+    ['Nachtschatten', entry.nachtschatten !== undefined ? entry.nachtschatten + '/4' : null],
+    ['Eier', entry.eier !== undefined ? entry.eier + '/4' : null],
+    ['Maske Biodance', entry.maske ? 'Ja' : null],
+  ].filter(r => r[1] !== null && r[1] !== undefined);
+
+  content.innerHTML = rows.map(([label, val]) =>
+    `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.05);font-size:14px;">
+      <span style="color:var(--text-soft);">${label}</span>
+      <span style="font-weight:500;">${val}</span>
+    </div>`
+  ).join('') || '<p style="color:var(--text-soft);font-size:14px;">Keine Daten.</p>';
+}
+
+function formatDate(dateKey) {
+  const d = new Date(dateKey);
+  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// =====================
+// STATISTIK
+// =====================
+let charts = {};
+let overlayActive = { stress: false, schlaf: false, wasser: false, nachtschatten: false, maske: false };
+
+function pearson(xs, ys) {
+  const n = xs.length;
+  if (n < 3) return 0;
+  const mx = xs.reduce((a,b)=>a+b,0)/n, my = ys.reduce((a,b)=>a+b,0)/n;
+  let num = 0, dx = 0, dy = 0;
+  for (let i=0;i<n;i++) { num += (xs[i]-mx)*(ys[i]-my); dx += (xs[i]-mx)**2; dy += (ys[i]-my)**2; }
+  const denom = Math.sqrt(dx*dy);
+  return denom === 0 ? 0 : num/denom;
+}
+
+function updateStats() {
+  // Aggregate ALL entries across all cycles
+  const allEntries = [];
+  appData.cycles.forEach(c => Object.values(c.entries).forEach(e => allEntries.push(e)));
+
+  // Charts use current cycle data
+  const cycle = currentCycle();
+  const start = new Date(cycle.start);
+  const len = appData.settings.cycleLength;
+  const labels = [];
+  const series = { talg:[], talgR:[], picking:[], gefuehl:[], training:[], stress:[], schlaf:[], langeweile:[], wasser:[], zucker:[], milch:[], nachtschatten:[], eier:[], alkohol:[], maske:[], unterleib:[] };
+
+  for (let d = 0; d < len; d++) {
+    const date = new Date(start);
+    date.setDate(date.getDate() + d);
+    const dk = date.toISOString().split('T')[0];
+    const e = cycle.entries[dk] || {};
+    labels.push('T'+(d+1));
+    series.talg.push(e['talg-gesicht'] ?? null);
+    series.talgR.push(e['talg-ruecken'] ?? null);
+    series.picking.push(e.picking ?? null);
+    series.gefuehl.push(e.gefuehl ?? null);
+    series.training.push(e.training ?? null);
+    series.stress.push(e.stress ?? null);
+    series.schlaf.push(e.schlaf ?? null);
+    series.langeweile.push(e.langeweile ?? null);
+    series.wasser.push(e.wasser ?? null);
+    series.zucker.push(e.zucker ?? null);
+    series.milch.push(e.milch ?? null);
+    series.nachtschatten.push(e.nachtschatten ?? null);
+    series.eier.push(e.eier ?? null);
+    series.alkohol.push(e.alkohol ?? null);
+    series.maske.push(e.maske ? 1 : null); // show as point markers only
+    series.unterleib.push(e.unterleib ? 1 : null);
+  }
+
+  // Top skin stats (all cycles)
+  const talgAll = allEntries.map(e=>e['talg-gesicht']).filter(v=>v!=null);
+  const pickAll = allEntries.map(e=>e.picking).filter(v=>v!=null);
+  document.getElementById('stat-talg-avg').textContent = talgAll.length ? (talgAll.reduce((a,b)=>a+b,0)/talgAll.length).toFixed(1) : '—';
+  document.getElementById('stat-picking-avg').textContent = pickAll.length ? (pickAll.reduce((a,b)=>a+b,0)/pickAll.length).toFixed(1) : '—';
+
+  let bestDay='—', worstDay='—', bestVal=99, worstVal=-1;
+  series.talg.forEach((v,i)=>{ if(v===null)return; if(v<bestVal){bestVal=v;bestDay=labels[i];} if(v>worstVal){worstVal=v;worstDay=labels[i];} });
+  document.getElementById('stat-best-day').textContent = bestDay;
+  document.getElementById('stat-worst-day').textContent = worstDay;
+
+  // General stats (all cycles)
+  const periodeDays = allEntries.filter(e=>e.periode).length;
+  const schlafVals = allEntries.map(e=>e.schlaf).filter(Boolean);
+  const wasserVals = allEntries.map(e=>e.wasser).filter(Boolean);
+  const totalCycles = appData.cycles.length;
+  document.getElementById('stat-zyklus').textContent = totalCycles + ' Zyklus' + (totalCycles>1?'en':'');
+  document.getElementById('stat-periode').textContent = periodeDays;
+  document.getElementById('stat-schlaf').textContent = schlafVals.length ? Math.round(schlafVals.reduce((a,b)=>a+b,0)/schlafVals.length)+'%' : '—';
+  document.getElementById('stat-wasser').textContent = wasserVals.length ? (wasserVals.reduce((a,b)=>a+b,0)/wasserVals.length).toFixed(1) : '—';
+
+  // Build combined per-day series across ALL cycles for correlation
+  const dayCount = appData.settings.cycleLength;
+  const buckets = {};
+  ['talg','stress','schlaf','wasser','zucker','milch','nachtschatten','eier','alkohol','langeweile','gefuehl','maske'].forEach(k => {
+    buckets[k] = Array.from({length: dayCount}, ()=>[]);
+  });
+  appData.cycles.forEach(c => {
+    const cs = new Date(c.start);
+    for (let d = 0; d < dayCount; d++) {
+      const date = new Date(cs); date.setDate(date.getDate() + d);
+      const e = c.entries[date.toISOString().split('T')[0]];
+      if (!e) continue;
+      const map = { talg:'talg-gesicht', stress:'stress', schlaf:'schlaf', wasser:'wasser', zucker:'zucker', milch:'milch', nachtschatten:'nachtschatten', eier:'eier', alkohol:'alkohol', langeweile:'langeweile', gefuehl:'gefuehl' };
+      Object.entries(map).forEach(([k, ek]) => { if (e[ek] != null) buckets[k][d].push(e[ek]); });
+      // Maske als 0/1
+      if (e.maske !== undefined) buckets.maske[d].push(e.maske ? 1 : 0);
+    }
+  });
+  const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+  const flatTalg = [], flatFactors = {};
+  ['stress','schlaf','wasser','zucker','milch','nachtschatten','eier','alkohol','langeweile','gefuehl','maske'].forEach(k=>flatFactors[k]=[]);
+  for (let d=0;d<dayCount;d++) {
+    const t = avg(buckets.talg[d]);
+    if (t===null) continue;
+    flatTalg.push(t);
+    Object.keys(flatFactors).forEach(k => flatFactors[k].push(avg(buckets[k][d])));
+  }
+
+  // Maske Verzögerungsanalyse: Talg 0/1/2/3 Tage nach Maskenanwendung
+  const maskeDelayCard = (() => {
+    // Collect all (maskeDay → talgN days later) pairs across all cycles
+    const delayResults = [1, 2, 3].map(delay => {
+      const vals = [];
+      appData.cycles.forEach(c => {
+        const cs = new Date(c.start);
+        const dateKeys = Object.keys(c.entries).sort();
+        dateKeys.forEach(dk => {
+          if (!c.entries[dk].maske) return;
+          const laterDate = new Date(dk);
+          laterDate.setDate(laterDate.getDate() + delay);
+          const laterKey = laterDate.toISOString().split('T')[0];
+          const laterEntry = c.entries[laterKey];
+          if (laterEntry && laterEntry['talg-gesicht'] != null) {
+            vals.push(laterEntry['talg-gesicht']);
+          }
+        });
+      });
+      return { delay, avg: vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1) : null, n: vals.length };
+    });
+    // Also baseline: talg on mask day itself
+    const maskeDayVals = [];
+    appData.cycles.forEach(c => {
+      Object.entries(c.entries).forEach(([dk, e]) => {
+        if (e.maske && e['talg-gesicht'] != null) maskeDayVals.push(e['talg-gesicht']);
+      });
+    });
+    const baselineAvg = maskeDayVals.length ? (maskeDayVals.reduce((a,b)=>a+b,0)/maskeDayVals.length).toFixed(1) : null;
+    return { delayResults, baselineAvg, totalMaskeDays: maskeDayVals.length };
+  })();
+
+  // Correlation bars
+  const factors = [
+    {key:'stress',label:'Stress',emoji:'😰'},
+    {key:'schlaf',label:'Schlaf %',emoji:'😴'},
+    {key:'wasser',label:'Wasser',emoji:'💧'},
+    {key:'zucker',label:'Zucker',emoji:'🍬'},
+    {key:'milch',label:'Milch',emoji:'🥛'},
+    {key:'nachtschatten',label:'Nachtschatten',emoji:'🍅'},
+    {key:'eier',label:'Eier',emoji:'🥚'},
+    {key:'alkohol',label:'Alkohol',emoji:'🍷'},
+    {key:'langeweile',label:'Langeweile',emoji:'🥱'},
+    {key:'gefuehl',label:'Gefühl allg.',emoji:'😊'},
+    {key:'maske',label:'Maske Biodance (selber Tag)',emoji:'🎭'},
+  ];
+  const corrContainer = document.getElementById('correlationBars');
+  corrContainer.innerHTML = '';
+  if (appData.cycles.length > 1) {
+    const note = document.createElement('p');
+    note.style.cssText = 'font-size:12px;color:var(--sage);margin-bottom:12px;font-weight:500;';
+    note.textContent = '✨ Analyse über ' + appData.cycles.length + ' Zyklen';
+    corrContainer.appendChild(note);
+  }
+  const corrResults = factors.map(f => {
+    const pairs = flatTalg.map((t,i)=>[flatFactors[f.key][i],t]).filter(([a,b])=>a!=null&&b!=null);
+    return {...f, r: pairs.length>=3 ? pearson(pairs.map(p=>p[0]),pairs.map(p=>p[1])) : 0, n: pairs.length};
+  }).sort((a,b)=>Math.abs(b.r)-Math.abs(a.r));
+  corrResults.forEach(f => {
+    const pct = Math.round(Math.abs(f.r)*100);
+    const bad = f.r > 0;
+    const color = bad ? '#e05a7a' : '#8faf9f';
+    const label = bad ? '↑ verschlechtert Haut' : '↓ verbessert Haut';
+    const strength = pct>60?'stark':pct>30?'mittel':'schwach';
+    const row = document.createElement('div');
+    row.style.marginBottom = '14px';
+    row.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;"><span style="font-size:13px;font-weight:500;">'+f.emoji+' '+f.label+'</span><span style="font-size:11px;color:'+color+';font-weight:600;">'+(f.n>=3?label+' ('+strength+')':'zu wenig Daten')+'</span></div><div style="height:8px;background:var(--warm);border-radius:4px;overflow:hidden;"><div style="width:'+pct+'%;height:100%;background:'+color+';border-radius:4px;"></div></div><div style="font-size:10px;color:var(--text-soft);margin-top:3px;">Korrelation: '+f.r.toFixed(2)+' · '+f.n+' Datenpunkte</div>';
+    corrContainer.appendChild(row);
+  });
+
+  // 🎭 Maske Biodance Verzögerungsanalyse
+  const maskeContainer = document.getElementById('maskeDelayContent');
+  if (maskeContainer) {
+    const md = maskeDelayCard;
+    if (md.totalMaskeDays === 0) {
+      maskeContainer.innerHTML = '<p style="font-size:13px;color:var(--text-soft);">Noch keine Masken-Einträge vorhanden.</p>';
+    } else {
+      const baselineColor = '#c97b8e';
+      let html = '<p style="font-size:12px;color:var(--text-soft);margin-bottom:14px;line-height:1.5;">Ø Talg-Wert direkt am Masken-Tag und in den Folgetagen. Sinkt der Wert → Maske wirkt positiv.</p>';
+      html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;">';
+      // Tag 0 (Masken-Tag)
+      html += '<div style="text-align:center;background:var(--warm);border-radius:12px;padding:10px 4px;"><div style="font-size:22px;font-weight:700;color:'+baselineColor+';">'+(md.baselineAvg||'—')+'</div><div style="font-size:10px;color:var(--text-soft);margin-top:3px;">Tag 0<br>Masken-Tag</div></div>';
+      md.delayResults.forEach(r => {
+        const val = parseFloat(r.avg);
+        const base = parseFloat(md.baselineAvg);
+        const improved = !isNaN(val) && !isNaN(base) && val < base;
+        const col = improved ? '#8faf9f' : (val > base ? '#e05a7a' : '#c97b8e');
+        const arrow = improved ? '↓' : (val > base ? '↑' : '→');
+        html += '<div style="text-align:center;background:var(--warm);border-radius:12px;padding:10px 4px;"><div style="font-size:22px;font-weight:700;color:'+col+';">'+(r.avg||'—')+'</div><div style="font-size:10px;color:var(--text-soft);margin-top:3px;">Tag +'+r.delay+'<br>'+(r.n>0?arrow+' '+r.n+' Werte':'k.D.')+'</div></div>';
+      });
+      html += '</div>';
+      // Mini bar chart comparing baseline vs day+1
+      if (md.delayResults[0].avg && md.baselineAvg) {
+        const vals = [md.baselineAvg, ...md.delayResults.map(r=>r.avg||0)];
+        const maxVal = Math.max(...vals.map(Number)) || 10;
+        html += '<div style="display:flex;align-items:flex-end;gap:6px;height:60px;margin-bottom:6px;">';
+        const dayLabels = ['Masken-Tag', '+1 Tag', '+2 Tage', '+3 Tage'];
+        vals.forEach((v,i) => {
+          const h = Math.round((Number(v)/maxVal)*100);
+          const col = i===0 ? '#c97b8e' : (Number(v)<Number(vals[0]) ? '#8faf9f' : '#e05a7a');
+          html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;"><div style="width:100%;background:'+col+';border-radius:4px 4px 0 0;height:'+h+'%"></div><div style="font-size:9px;color:var(--text-soft);text-align:center;line-height:1.2;">'+dayLabels[i]+'</div></div>';
+        });
+        html += '</div>';
+      }
+      maskeContainer.innerHTML = html;
+    }
+  }
+
+  // Overlay chart
+  const overlayDefs = [
+    {key:'stress',label:'Stress',color:'#c97b8e'},
+    {key:'schlaf',label:'Schlaf',color:'#8faf9f'},
+    {key:'wasser',label:'Wasser',color:'#6baed6'},
+    {key:'zucker',label:'Zucker',color:'#f6a623'},
+    {key:'milch',label:'Milch',color:'#b0c8f0'},
+    {key:'nachtschatten',label:'Nachtschatten',color:'#e05a7a'},
+    {key:'maske',label:'Maske 🎭',color:'#9b6daa'},
+  ];
+  const togglesEl = document.getElementById('overlayToggles');
+  togglesEl.innerHTML = '';
+  overlayDefs.forEach(o => {
+    const btn = document.createElement('button');
+    btn.textContent = o.label;
+    btn.style.cssText = 'padding:6px 12px;border-radius:20px;border:2px solid '+o.color+';background:'+(overlayActive[o.key]?o.color:'transparent')+';color:'+(overlayActive[o.key]?'white':o.color)+';font-size:11px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;';
+    btn.onclick = () => { overlayActive[o.key]=!overlayActive[o.key]; updateStats(); };
+    togglesEl.appendChild(btn);
+  });
+  const overlayDS = [{label:'Talg Gesicht',data:series.talg,borderColor:'#e8a4b0',backgroundColor:'#e8a4b022',fill:true,tension:0.4,pointRadius:3,spanGaps:true,yAxisID:'y'}];
+  overlayDefs.forEach(o => {
+    if (!overlayActive[o.key]) return;
+    if (o.key === 'maske') {
+      // Show as vertical markers at y=10 where maske=1
+      overlayDS.push({label:'Maske 🎭', data:series.maske.map(v=>v?10:null), borderColor:'#9b6daa', backgroundColor:'#9b6daa', fill:false, tension:0, pointRadius:series.maske.map(v=>v?8:0), pointStyle:'star', spanGaps:false, showLine:false, yAxisID:'y'});
+    } else {
+      const isPercent = o.key==='schlaf';
+      overlayDS.push({label:o.label,data:series[o.key],borderColor:o.color,backgroundColor:'transparent',fill:false,tension:0.4,pointRadius:2,spanGaps:true,borderDash:[4,3],yAxisID:isPercent?'y2':'y'});
+    }
+  });
+  if (charts['chartHautOverlay']) charts['chartHautOverlay'].destroy();
+  charts['chartHautOverlay'] = new Chart(document.getElementById('chartHautOverlay').getContext('2d'), {
+    type:'line',data:{labels,datasets:overlayDS},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:true,labels:{font:{size:10},boxWidth:12}}},
+      scales:{y:{min:0,max:10,ticks:{font:{size:9}},grid:{color:'rgba(0,0,0,0.04)'}},
+        y2:{min:0,max:100,position:'right',ticks:{font:{size:9}},grid:{display:false},display:!!overlayActive['schlaf']},
+        x:{grid:{display:false},ticks:{font:{size:9},maxTicksLimit:10}}}}
+  });
+
+  renderChart('chartTalg',labels,[{data:series.talg,borderColor:'#e8a4b0',backgroundColor:'#e8a4b022',label:'Gesicht',fill:true},{data:series.talgR,borderColor:'#c97b8e',backgroundColor:'transparent',label:'Rücken',fill:false,borderDash:[4,3]}],10,true);
+  renderChart('chartPicking',labels,[{data:series.picking,borderColor:'#ddb8c8',backgroundColor:'#ddb8c822',label:'Picking',fill:true}],10,true);
+  renderChart('chartGefuehl',labels,[{data:series.gefuehl,borderColor:'#e8a4b0',backgroundColor:'#e8a4b022',label:'Gefühl',fill:true}],10,true);
+  renderChart('chartUnterleib',labels,[{data:series.unterleib,borderColor:'#e05a7a',backgroundColor:'#e05a7a22',label:'Unterleibschmerz',fill:true,pointRadius:series.unterleib.map(v=>v?6:0),spanGaps:false,showLine:false}],1,true);
+  renderChart('chartTraining',labels,[{data:series.training,borderColor:'#8faf9f',backgroundColor:'#8faf9f22',label:'Training',fill:true}],10,true);
+  renderChart('chartStress',labels,[{data:series.stress,borderColor:'#c97b8e',backgroundColor:'#c97b8e22',label:'Stress',fill:true}],10,true);
+  renderChart('chartSchlaf',labels,[{data:series.schlaf,borderColor:'#8faf9f',backgroundColor:'#8faf9f22',label:'Schlaf',fill:true}],100,true);
+  renderChart('chartLangeweile',labels,[{data:series.langeweile,borderColor:'#b8a4d4',backgroundColor:'#b8a4d422',label:'Langeweile',fill:true}],10,true);
+  renderChart('chartWasser',labels,[{data:series.wasser,borderColor:'#6baed6',backgroundColor:'#6baed622',label:'Wasser L',fill:true}],null,true);
+  renderChart('chartErnaehrung',labels,[{data:series.zucker,borderColor:'#f6a623',label:'Zucker',fill:false},{data:series.milch,borderColor:'#b0c8f0',label:'Milch',fill:false},{data:series.nachtschatten,borderColor:'#e05a7a',label:'Nachtschatten',fill:false},{data:series.eier,borderColor:'#f5d4db',label:'Eier',fill:false},{data:series.alkohol,borderColor:'#9b6daa',label:'Alkohol',fill:false}],4,true);
+}
+
+function renderChart(id, labels, datasets, max, legend) {
+  if (charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  const dsArr = datasets.map(ds => ({
+    tension: 0.4, pointRadius: 3, pointHoverRadius: 5, spanGaps: true, ...ds
+  }));
+  charts[id] = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: dsArr },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: !!legend && datasets.length > 1, labels: { font: { size: 10 }, boxWidth: 12 } } },
+      scales: {
+        y: { min: 0, ...(max ? {max} : {}), grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 10 } } },
+        x: { grid: { display: false }, ticks: { font: { size: 9 }, maxTicksLimit: 10 } }
+      }
+    }
+  });
+}
+
+
+// =====================
+// SETTINGS
+// =====================
+function initSettings() {
+  document.getElementById('cycleLength').value = appData.settings.cycleLength;
+  document.getElementById('ovulationDay').value = appData.settings.ovulationDay;
+  document.getElementById('notif-daily').value = appData.settings.notifTime || '20:00';
+  document.getElementById('manualCycleStart').value = today;
+  setToggleState('toggle-notif', appData.settings.notifEnabled);
+}
+
+function saveSettings() {
+  appData.settings.cycleLength = parseInt(document.getElementById('cycleLength').value);
+  appData.settings.ovulationDay = parseInt(document.getElementById('ovulationDay').value);
+  appData.settings.notifTime = document.getElementById('notif-daily').value;
+  saveData();
+  showToast('✅ Einstellungen gespeichert');
+  initHeuteView();
+  renderCycleGrid();
+  updateStats();
+}
+
+function startNewCycleManual() {
+  const dateVal = document.getElementById('manualCycleStart').value;
+  if (!dateVal) { showToast('Bitte Datum wählen'); return; }
+  const alreadyStart = appData.cycles.some(c => c.start === dateVal);
+  if (alreadyStart) { showToast('Zyklus für dieses Datum existiert bereits'); return; }
+  // Check date is after last cycle start
+  const lastStart = currentCycle().start;
+  if (dateVal <= lastStart) { showToast('Datum muss nach letztem Zyklusstart liegen'); return; }
+  const newCycle = { id: appData.cycles.length + 1, start: dateVal, entries: {} };
+  appData.cycles.push(newCycle);
+  saveData();
+  activeCycle = getCycleForDate(activeDay);
+  showToast('🌸 Zyklus #' + newCycle.id + ' gestartet ab ' + new Date(dateVal).toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'}));
+  renderCycleGrid();
+  updateStats();
+  initHeuteView();
+}
+
+function toggleNotif() {
+  appData.settings.notifEnabled = !appData.settings.notifEnabled;
+  setToggleState('toggle-notif', appData.settings.notifEnabled);
+  saveData();
+  if (appData.settings.notifEnabled && 'Notification' in window) {
+    Notification.requestPermission().then(p => {
+      if (p === 'granted') showToast('🔔 Benachrichtigungen aktiviert');
+      else showToast('❌ Berechtigung verweigert');
+    });
+  }
+}
+
+// =====================
+// EXPORT
+// =====================
+function exportCSV() {
+  const headers = ['Zyklus','Datum','Zyklustag','Periode','Eisprung','Unterleibschmerz','Gefühl','Training','Stress','Schlaf%','Wasser','TalgGesicht','TalgRücken','Picking','Langeweile','Zucker','Milch','Nachtschatten','Eier','Alkohol','Maske'];
+  const rows = [headers.join(',')];
+  appData.cycles.forEach(c => {
+    const cs = new Date(c.start);
+    Object.entries(c.entries).sort().forEach(([dateKey, e]) => {
+      const dayNum = Math.floor((new Date(dateKey) - cs) / 86400000) + 1;
+      rows.push([
+        c.id, dateKey, dayNum,
+        e.periode?1:0, e.eisprung?1:0, e.unterleib?1:0,
+        e.gefuehl||'', e.training||'', e.stress||'',
+        e.schlaf||'', e.wasser||'',
+        e['talg-gesicht']||'', e['talg-ruecken']||'',
+        e.picking||'', e.langeweile||'',
+        e.zucker!==undefined?e.zucker:'',
+        e.milch!==undefined?e.milch:'',
+        e.nachtschatten!==undefined?e.nachtschatten:'',
+        e.eier!==undefined?e.eier:'',
+        e.alkohol!==undefined?e.alkohol:'',
+        e.maske?1:0
+      ].join(','));
+    });
+  });
+
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'zyklusjournal.csv';
+  a.click(); URL.revokeObjectURL(url);
+  showToast('📊 CSV exportiert');
+}
+
+function importExcel() {
+  showToast('Nutze den CSV-Export aus deiner App zum Sichern');
+}
+
+// =====================
+// NAV
+// =====================
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  event.target.classList.add('active');
+
+  if (name === 'verlauf') renderCycleGrid();
+  if (name === 'statistik') updateStats();
+  if (name === 'einstellungen') initSettings();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// =====================
+// INIT
+// =====================
+document.getElementById('dayPicker').value = activeDay;
+document.getElementById('dayPicker').max = today;
+document.getElementById('nextDayBtn').style.opacity = '0.3';
+initHeuteView();
+// Register Service Worker (PWA)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
